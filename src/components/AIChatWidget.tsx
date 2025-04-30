@@ -74,6 +74,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       const dataArray = await response.json();
       console.log("Webhook response:", dataArray);
 
+      // Prendre la première réponse dans le tableau des réponses
       const data = Array.isArray(dataArray) ? dataArray[0] : {};
       return data?.response || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
 
@@ -123,7 +124,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
     const nextStep = currentStep + 1;
 
     if (webhookResponse) {
-      // Ajouter la réponse du webhook ou la question prédéfinie
+      // Ajouter la réponse du webhook à la conversation
       setMessages(prev => [
         ...prev,
         { role: 'system' as const, content: webhookResponse }
