@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/contexts/ProductContext";
@@ -56,9 +56,9 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
           [step === 0 ? 'name' : step === 1 ? 'location' : 'question']: userMessage
         }
       };
-
+      
       console.log("Sending to webhook:", payload);
-
+      
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
@@ -66,21 +66,21 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
         },
         body: JSON.stringify(payload)
       });
-
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(HTTP error! status: ${response.status});
       }
-
-      const dataArray = await response.json();
-      console.log("Webhook response:", dataArray);
-
-      // Prendre la première réponse dans le tableau des réponses
-      const data = Array.isArray(dataArray) ? dataArray[0] : {};
+      
+      const data = await response.json();
+      console.log("Webhook response:", data);
+      
+      // On utilise la réponse du webhook si disponible, sinon on utilise la question suivante prédéfinie
       return data?.response || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
-
+      
     } catch (error) {
       console.error("Error calling webhook:", error);
       toast.error("Problème de communication avec le service. Utilisation du mode standard.");
+      // En cas d'erreur, on revient aux questions prédéfinies
       return step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null;
     } finally {
       setIsWaitingForWebhook(false);
@@ -89,17 +89,17 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
 
   const sendMessage = async () => {
     if (!userInput.trim() || isSubmitting || isWaitingForWebhook) return;
-
+    
     setIsSubmitting(true);
-
+    
     // Ajouter la réponse de l'utilisateur
     const updatedMessages = [
       ...messages,
       { role: 'user' as const, content: userInput }
     ];
-
+    
     setMessages(updatedMessages);
-
+    
     // Mettre à jour les informations client en fonction de l'étape
     const newCustomerInfo = { ...customerInfo };
     switch (currentStep) {
@@ -113,26 +113,26 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
         newCustomerInfo.question = userInput;
         break;
     }
-
+    
     setCustomerInfo(newCustomerInfo);
     setUserInput('');
-
+    
     // Envoyer au webhook et attendre la réponse
     const webhookResponse = await sendMessageToWebhook(userInput, currentStep);
-
+    
     // Passer à la question suivante s'il en reste
     const nextStep = currentStep + 1;
-
+    
     if (webhookResponse) {
-      // Ajouter la réponse du webhook à la conversation
+      // Ajouter la réponse du webhook ou la question prédéfinie
       setMessages(prev => [
         ...prev,
         { role: 'system' as const, content: webhookResponse }
       ]);
-
+      
       setCurrentStep(nextStep);
       setIsSubmitting(false);
-
+      
       // Si c'était la dernière étape, marquer comme terminé
       if (nextStep >= INITIAL_QUESTIONS.length - 1) {
         setIsComplete(true);
@@ -143,20 +143,13 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       setIsSubmitting(false);
     }
   };
-
+  
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   };
-
-  // Assurez-vous que les messages sont mis à jour et visibles après chaque réponse
-  useEffect(() => {
-    if (isComplete) {
-      console.log("Conversation terminée. Affichage de tous les messages.");
-    }
-  }, [isComplete]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -172,11 +165,11 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
           {messages.map((message, index) => (
             <div 
               key={index}
-              className={`${
+              className={${
                 message.role === 'system' 
                   ? 'bg-gray-100 rounded-lg p-3 max-w-[80%]' 
                   : 'bg-primary-100 rounded-lg p-3 max-w-[80%] ml-auto'
-              }`}
+              }}
             >
               {message.content}
             </div>
@@ -224,4 +217,4 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
   );
 };
 
-export default AIChatWidget;
+export default AIChatWidget;" 
