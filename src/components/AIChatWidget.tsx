@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +21,7 @@ const INITIAL_QUESTIONS = [
   "Merci pour votre intérêt ! Un conseiller vous contactera bientôt avec plus d'informations."
 ];
 
-const WEBHOOK_URL = 'https://3cb3-196-64-218-121.ngrok-free.app/webhook-test/bdb34e5d-3bdd-4328-aeb2-96821aa62891';
+const WEBHOOK_URL = 'https://3cb3-196-64-218-121.ngrok-free.app/webhook/bdb34e5d-3bdd-4328-aeb2-96821aa62891';
 
 const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
