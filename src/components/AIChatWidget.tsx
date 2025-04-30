@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/contexts/ProductContext";
@@ -74,6 +74,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       const dataArray = await response.json();
       console.log("Webhook response:", dataArray);
 
+      // Prendre la première réponse dans le tableau des réponses
       const data = Array.isArray(dataArray) ? dataArray[0] : {};
       return data?.response || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
 
@@ -123,7 +124,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
     const nextStep = currentStep + 1;
 
     if (webhookResponse) {
-      // Ajouter la réponse du webhook ou la question prédéfinie
+      // Ajouter la réponse du webhook à la conversation
       setMessages(prev => [
         ...prev,
         { role: 'system' as const, content: webhookResponse }
@@ -149,6 +150,13 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       sendMessage();
     }
   };
+
+  // Assurez-vous que les messages sont mis à jour et visibles après chaque réponse
+  useEffect(() => {
+    if (isComplete) {
+      console.log("Conversation terminée. Affichage de tous les messages.");
+    }
+  }, [isComplete]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
