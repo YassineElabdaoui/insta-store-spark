@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/contexts/ProductContext";
 import { toast } from "sonner";
@@ -23,6 +22,8 @@ const INITIAL_QUESTIONS = [
   "Merci pour votre intérêt ! Un conseiller vous contactera bientôt avec plus d'informations."
 ];
 
+const WEBHOOK_URL = 'https://3cb3-196-64-218-121.ngrok-free.app/webhook-test/bdb34e5d-3bdd-4328-aeb2-96821aa62891';
+
 const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: 'system', content: INITIAL_QUESTIONS[0] }
@@ -36,78 +37,111 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  const [isWaitingForWebhook, setIsWaitingForWebhook] = useState(false);
 
   const handleUserInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setUserInput(e.target.value);
   };
 
+  const sendMessageToWebhook = async (userMessage: string, step: number) => {
+    setIsWaitingForWebhook(true);
+    
+    try {
+      const payload = {
+        message: userMessage,
+        productId: product.id,
+        userId: 'anonymous', // Comme les acheteurs n'ont pas de compte
+        step: step,
+        customerInfo: {
+          ...customerInfo,
+          [step === 0 ? 'name' : step === 1 ? 'location' : 'question']: userMessage
+        }
+      };
+      
+      console.log("Sending to webhook:", payload);
+      
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Webhook response:", data);
+      
+      // On utilise la réponse du webhook si disponible, sinon on utilise la question suivante prédéfinie
+      return data?.response || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
+      
+    } catch (error) {
+      console.error("Error calling webhook:", error);
+      toast.error("Problème de communication avec le service. Utilisation du mode standard.");
+      // En cas d'erreur, on revient aux questions prédéfinies
+      return step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null;
+    } finally {
+      setIsWaitingForWebhook(false);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!userInput.trim() || isSubmitting) return;
+    if (!userInput.trim() || isSubmitting || isWaitingForWebhook) return;
     
     setIsSubmitting(true);
     
     // Ajouter la réponse de l'utilisateur
     const updatedMessages = [
       ...messages,
-      { role: 'user', content: userInput }
+      { role: 'user' as const, content: userInput }
     ];
     
     setMessages(updatedMessages);
     
     // Mettre à jour les informations client en fonction de l'étape
+    const newCustomerInfo = { ...customerInfo };
     switch (currentStep) {
       case 0:
-        setCustomerInfo(prev => ({ ...prev, name: userInput }));
+        newCustomerInfo.name = userInput;
         break;
       case 1:
-        setCustomerInfo(prev => ({ ...prev, location: userInput }));
+        newCustomerInfo.location = userInput;
         break;
       case 2:
-        setCustomerInfo(prev => ({ ...prev, question: userInput }));
+        newCustomerInfo.question = userInput;
         break;
     }
     
+    setCustomerInfo(newCustomerInfo);
     setUserInput('');
+    
+    // Envoyer au webhook et attendre la réponse
+    const webhookResponse = await sendMessageToWebhook(userInput, currentStep);
     
     // Passer à la question suivante s'il en reste
     const nextStep = currentStep + 1;
     
-    if (nextStep < INITIAL_QUESTIONS.length) {
-      // Simuler un délai pour rendre la conversation plus naturelle
-      setTimeout(() => {
-        setMessages(prev => [
-          ...prev,
-          { role: 'system', content: INITIAL_QUESTIONS[nextStep] }
-        ]);
-        setCurrentStep(nextStep);
-        setIsSubmitting(false);
-      }, 1000);
+    if (webhookResponse) {
+      // Ajouter la réponse du webhook ou la question prédéfinie
+      setMessages(prev => [
+        ...prev,
+        { role: 'system' as const, content: webhookResponse }
+      ]);
+      
+      setCurrentStep(nextStep);
+      setIsSubmitting(false);
+      
+      // Si c'était la dernière étape, marquer comme terminé
+      if (nextStep >= INITIAL_QUESTIONS.length - 1) {
+        setIsComplete(true);
+      }
     } else {
       // Conversation terminée
       setIsComplete(true);
-      
-      // Simuler l'envoi des données vers un webhook
-      try {
-        console.log("Données client à envoyer au webhook:", {
-          product: {
-            id: product.id,
-            name: product.name,
-            price: product.price
-          },
-          customer: customerInfo,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Simuler un appel webhook réussi
-        setTimeout(() => {
-          toast.success("Vos informations ont été enregistrées");
-          setIsSubmitting(false);
-        }, 1500);
-      } catch (error) {
-        console.error("Erreur lors de l'envoi des données:", error);
-        toast.error("Une erreur est survenue");
-        setIsSubmitting(false);
-      }
+      setIsSubmitting(false);
     }
   };
   
@@ -141,6 +175,16 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
               {message.content}
             </div>
           ))}
+          
+          {isWaitingForWebhook && (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-pulse flex space-x-2">
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+                <div className="w-2 h-2 bg-primary rounded-full"></div>
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="border-t p-4">
@@ -153,14 +197,14 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
                 placeholder="Écrivez votre message..."
                 className="resize-none"
                 rows={2}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isWaitingForWebhook}
               />
               <Button 
                 onClick={sendMessage} 
                 className="ml-auto"
-                disabled={isSubmitting || !userInput.trim()}
+                disabled={isSubmitting || isWaitingForWebhook || !userInput.trim()}
               >
-                {isSubmitting ? "Envoi..." : "Envoyer"}
+                {isSubmitting || isWaitingForWebhook ? "Envoi..." : "Envoyer"}
               </Button>
             </div>
           ) : (
