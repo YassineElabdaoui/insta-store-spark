@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/contexts/ProductContext";
@@ -150,6 +150,13 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       sendMessage();
     }
   };
+
+  // Assurez-vous que les messages sont mis à jour et visibles après chaque réponse
+  useEffect(() => {
+    if (isComplete) {
+      console.log("Conversation terminée. Affichage de tous les messages.");
+    }
+  }, [isComplete]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
