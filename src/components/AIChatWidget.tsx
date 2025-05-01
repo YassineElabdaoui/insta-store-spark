@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/contexts/ProductContext";
@@ -38,20 +38,10 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isWaitingForWebhook, setIsWaitingForWebhook] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleUserInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setUserInput(e.target.value);
   };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    // Faire défiler vers le bas lors du chargement initial et lorsque de nouveaux messages sont ajoutés
-    scrollToBottom();
-  }, [messages]); 
 
   const sendMessageToWebhook = async (userMessage: string, step: number) => {
     setIsWaitingForWebhook(true);
@@ -82,19 +72,11 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const dataArray = await response.json();
-      console.log("Webhook response:", dataArray);
+      const data = await response.json();
+      console.log("Webhook response:", data);
 
-      // Traiter tous les éléments entrants au lieu de chercher une propriété 'response'
-      // Si c'est un tableau, utilisez le premier élément
-      if (Array.isArray(dataArray) && dataArray.length > 0) {
-        // Utiliser l'élément reçu directement comme réponse
-        return dataArray[0] || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
-      }
-      
-      // Si ce n'est pas un tableau, utiliser la valeur directement
-      return dataArray || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
-
+      // Vérifier si la réponse contient une propriété 'response'
+      return data.response || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
     } catch (error) {
       console.error("Error calling webhook:", error);
       toast.error("Problème de communication avec le service. Utilisation du mode standard.");
@@ -168,6 +150,13 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
     }
   };
 
+  // Assurez-vous que les messages sont mis à jour et visibles après chaque réponse
+  useEffect(() => {
+    if (isComplete) {
+      console.log("Conversation terminée. Affichage de tous les messages.");
+    }
+  }, [isComplete]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col">
@@ -201,7 +190,6 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
         
         <div className="border-t p-4">
@@ -215,7 +203,6 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
                 className="resize-none"
                 rows={2}
                 disabled={isSubmitting || isWaitingForWebhook}
-                autoFocus
               />
               <Button 
                 onClick={sendMessage} 
@@ -237,3 +224,4 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
 };
 
 export default AIChatWidget;
+

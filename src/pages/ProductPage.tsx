@@ -77,10 +77,9 @@ const ProductPage = () => {
         </div>
       </div>
       
-      {/* Chat widget - Ajout d'une condition clé pour forcer le remontage du composant */}
+      {/* Chat widget */}
       {showChat && (
         <AIChatWidget 
-          key={`chat-${product.id}`}
           product={product} 
           onClose={() => setShowChat(false)} 
         />
