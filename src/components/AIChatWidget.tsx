@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/contexts/ProductContext";
 import { toast } from "sonner";
+import { getUserId } from "@/utils/userIdentifier";
 
 interface AIChatWidgetProps {
   product: Product;
@@ -47,10 +48,13 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
     setIsWaitingForWebhook(true);
     
     try {
+      // Récupérer l'identifiant utilisateur unique
+      const userId = getUserId();
+      
       const payload = {
         message: userMessage,
         productId: product.id,
-        userId: 'anonymous', // Comme les acheteurs n'ont pas de compte
+        userId: userId, // Utiliser l'UUID généré
         step: step,
         customerInfo: {
           ...customerInfo,
