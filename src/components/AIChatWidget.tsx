@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,9 +75,15 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       const dataArray = await response.json();
       console.log("Webhook response:", dataArray);
 
-      // Prendre la première réponse dans le tableau des réponses
-      const data = Array.isArray(dataArray) ? dataArray[0] : {};
-      return data?.response || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
+      // Traiter tous les éléments entrants au lieu de chercher une propriété 'response'
+      // Si c'est un tableau, utilisez le premier élément
+      if (Array.isArray(dataArray) && dataArray.length > 0) {
+        // Utiliser l'élément reçu directement comme réponse
+        return dataArray[0] || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
+      }
+      
+      // Si ce n'est pas un tableau, utiliser la valeur directement
+      return dataArray || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
 
     } catch (error) {
       console.error("Error calling webhook:", error);
