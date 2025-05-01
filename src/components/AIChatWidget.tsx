@@ -19,7 +19,7 @@ const INITIAL_QUESTIONS = [
   "Bonjour ! Je suis ravi de votre intérêt pour ce produit. Pourriez-vous me dire votre nom ?",
   "Merci ! Où êtes-vous situé(e) ?",
   "Parfait. Avez-vous des questions spécifiques concernant ce produit ?",
-  "Merci pour votre intérêt ! Un conseiller vous contactera bientôt avec plus d'informations."
+  "Nous avons bien noté votre question. Y a-t-il autre chose que vous aimeriez savoir ?"
 ];
 
 const WEBHOOK_URL = 'https://3cb3-196-64-218-121.ngrok-free.app/webhook/bdb34e5d-3bdd-4328-aeb2-96821aa62891';
@@ -75,12 +75,21 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       const data = await response.json();
       console.log("Webhook response:", data);
 
-      // Vérifier si la réponse contient une propriété 'response'
-      return data.response || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null);
+      // Accepter tous les types de réponses du webhook n8n
+      if (Array.isArray(data) && data.length > 0) {
+        // Si c'est un tableau, utilisez le premier élément
+        return data[0];
+      } else if (data?.response) {
+        // Si c'est un objet avec une propriété 'response'
+        return data.response;
+      } else {
+        // Sinon, utilisez la réponse complète ou la question suivante
+        return data || (step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : INITIAL_QUESTIONS[3]);
+      }
     } catch (error) {
       console.error("Error calling webhook:", error);
       toast.error("Problème de communication avec le service. Utilisation du mode standard.");
-      return step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : null;
+      return step + 1 < INITIAL_QUESTIONS.length ? INITIAL_QUESTIONS[step + 1] : INITIAL_QUESTIONS[3];
     } finally {
       setIsWaitingForWebhook(false);
     }
@@ -109,7 +118,11 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
         newCustomerInfo.location = userInput;
         break;
       case 2:
-        newCustomerInfo.question = userInput;
+      default:
+        // Pour toutes les étapes après les 2 premières, considérer comme une question
+        if (currentStep === 2) {
+          newCustomerInfo.question = userInput;
+        }
         break;
     }
 
@@ -119,9 +132,6 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
     // Envoyer au webhook et attendre la réponse
     const webhookResponse = await sendMessageToWebhook(userInput, currentStep);
 
-    // Passer à la question suivante s'il en reste
-    const nextStep = currentStep + 1;
-
     if (webhookResponse) {
       // Ajouter la réponse du webhook à la conversation
       setMessages(prev => [
@@ -129,18 +139,23 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
         { role: 'system' as const, content: webhookResponse }
       ]);
 
+      // Avancer à l'étape suivante, mais jamais au-delà de la question finale (qui se répètera)
+      const nextStep = currentStep < 3 ? currentStep + 1 : 3;
       setCurrentStep(nextStep);
-      setIsSubmitting(false);
-
-      // Si c'était la dernière étape, marquer comme terminé
-      if (nextStep >= INITIAL_QUESTIONS.length - 1) {
-        setIsComplete(true);
-      }
+      
+      // La conversation ne se termine jamais automatiquement
+      setIsComplete(false);
     } else {
-      // Conversation terminée
-      setIsComplete(true);
-      setIsSubmitting(false);
+      // Si pas de réponse du webhook, utiliser la question standard suivante
+      setMessages(prev => [
+        ...prev,
+        { role: 'system' as const, content: INITIAL_QUESTIONS[3] }
+      ]);
+      setCurrentStep(3);
+      setIsComplete(false);
     }
+    
+    setIsSubmitting(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -149,13 +164,6 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
       sendMessage();
     }
   };
-
-  // Assurez-vous que les messages sont mis à jour et visibles après chaque réponse
-  useEffect(() => {
-    if (isComplete) {
-      console.log("Conversation terminée. Affichage de tous les messages.");
-    }
-  }, [isComplete]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -193,30 +201,24 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
         </div>
         
         <div className="border-t p-4">
-          {!isComplete ? (
-            <div className="flex flex-col space-y-2">
-              <Textarea
-                value={userInput}
-                onChange={handleUserInput}
-                onKeyDown={handleKeyPress}
-                placeholder="Écrivez votre message..."
-                className="resize-none"
-                rows={2}
-                disabled={isSubmitting || isWaitingForWebhook}
-              />
-              <Button 
-                onClick={sendMessage} 
-                className="ml-auto"
-                disabled={isSubmitting || isWaitingForWebhook || !userInput.trim()}
-              >
-                {isSubmitting || isWaitingForWebhook ? "Envoi..." : "Envoyer"}
-              </Button>
-            </div>
-          ) : (
-            <Button onClick={onClose} className="w-full">
-              Fermer la discussion
+          <div className="flex flex-col space-y-2">
+            <Textarea
+              value={userInput}
+              onChange={handleUserInput}
+              onKeyDown={handleKeyPress}
+              placeholder="Écrivez votre message..."
+              className="resize-none"
+              rows={2}
+              disabled={isSubmitting || isWaitingForWebhook}
+            />
+            <Button 
+              onClick={sendMessage} 
+              className="ml-auto"
+              disabled={isSubmitting || isWaitingForWebhook || !userInput.trim()}
+            >
+              {isSubmitting || isWaitingForWebhook ? "Envoi..." : "Envoyer"}
             </Button>
-          )}
+          </div>
         </div>
       </div>
     </div>
@@ -224,4 +226,3 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
 };
 
 export default AIChatWidget;
-

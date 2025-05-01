@@ -77,9 +77,10 @@ const ProductPage = () => {
         </div>
       </div>
       
-      {/* Chat widget */}
+      {/* Chat widget with key prop to ensure proper re-mounting */}
       {showChat && (
         <AIChatWidget 
+          key={`chat-${product.id}`}
           product={product} 
           onClose={() => setShowChat(false)} 
         />
