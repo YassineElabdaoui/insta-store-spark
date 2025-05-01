@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Product } from "@/contexts/ProductContext";
@@ -38,10 +38,20 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isWaitingForWebhook, setIsWaitingForWebhook] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const handleUserInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setUserInput(e.target.value);
   };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    // Faire défiler vers le bas lors du chargement initial et lorsque de nouveaux messages sont ajoutés
+    scrollToBottom();
+  }, [messages]); 
 
   const sendMessageToWebhook = async (userMessage: string, step: number) => {
     setIsWaitingForWebhook(true);
@@ -158,13 +168,6 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
     }
   };
 
-  // Assurez-vous que les messages sont mis à jour et visibles après chaque réponse
-  useEffect(() => {
-    if (isComplete) {
-      console.log("Conversation terminée. Affichage de tous les messages.");
-    }
-  }, [isComplete]);
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden flex flex-col">
@@ -198,6 +201,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
         
         <div className="border-t p-4">
@@ -211,6 +215,7 @@ const AIChatWidget: React.FC<AIChatWidgetProps> = ({ product, onClose }) => {
                 className="resize-none"
                 rows={2}
                 disabled={isSubmitting || isWaitingForWebhook}
+                autoFocus
               />
               <Button 
                 onClick={sendMessage} 
